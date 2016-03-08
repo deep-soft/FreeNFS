@@ -1,0 +1,3 @@
+3.04
+http://freenfs.sourceforge.net/freenfs.exe
+eof
