@@ -199,6 +199,7 @@ Type
     obj_ctime: nfstime3;
   end;
 
+
 Const
   NFS_PROGRAM = 100003;     {* NFS program                                         *}
   NFS_V3 = 3;               {* NFS program version                                 *}
@@ -220,6 +221,8 @@ Const
   MNTNAMLEN  = 255;              {* Maximum bytes in a name                        *}
 
 Type
+  exportpath = array[0..MNTPATHLEN-1] of AnsiChar;
+
   MOUNTPROC3 = (
     MOUNTPROC3_NULL    = 0,
     MOUNTPROC3_MNT     = 1,
