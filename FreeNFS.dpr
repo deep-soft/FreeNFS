@@ -1,5 +1,5 @@
 {******************************************************************************}
-{*                         Network File System  3.0.2                         *}
+{*                         Network File System  3.0.5                         *}
 {* Updated Coding and comments by Lawrence E. Smith, Jacksonville, MO USA and *}
 {*                     Original Coding by Unknown Author                      *}
 {*     Contact:  larry_e_smith at that gmail.com  660-775-2282 USA Phone      *}
@@ -45,11 +45,11 @@ Var
   Program_Version : String;
 
 Begin
-  Program_Version := '3.0.2';
+// 3.0.5 - 2023-04-04: forced AddrAccepted to TRUE
+  Program_Version := '3.0.4';
   Application.Initialize;
   Application.Title := 'FreeNFS';
   Application.ShowMainForm := False;
   Application.CreateForm(TDSettings, DSettings);
   Application.Run;
 End.
-

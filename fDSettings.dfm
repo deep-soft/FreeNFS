@@ -64,6 +64,15 @@ object DSettings: TDSettings
           OnChange = FBOkEnabledCheck
         end
       end
+      object mLog: TMemo
+        Left = 24
+        Top = 136
+        Width = 417
+        Height = 225
+        Lines.Strings = (
+          'LOG:')
+        TabOrder = 1
+      end
     end
     object TSClients: TTabSheet
       Caption = 'Clients'
@@ -137,7 +146,7 @@ object DSettings: TDSettings
           Width = 249
           Height = 21
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 13
           TabOrder = 0
           OnChange = FBOkEnabledCheck
         end

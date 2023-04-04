@@ -1,5 +1,5 @@
 {******************************************************************************}
-{*                         Network File System  3.0.2                         *}
+{*                         Network File System  3.0.5                         *}
 {* Updated Coding and comments by Lawrence E. Smith, Jacksonville, MO USA and *}
 {*                     Original Coding by Unknown Author                      *}
 {*     Contact:  larry_e_smith at that gmail.com  660-775-2282 USA Phone      *}
@@ -81,6 +81,7 @@ Type
     TabSheet2   : TTabSheet;
     StaticText1 : TStaticText;
     StaticText2 : TStaticText;
+    mLog: TMemo;
 
     procedure FormShow(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -91,6 +92,7 @@ Type
     procedure pmQuitClick(Sender: TObject);
     procedure pmSettingsClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
+    procedure AddToLog(AValue: string);
     private
        CodePage: Integer;
        Host    : String;
@@ -356,6 +358,16 @@ begin
     else
       Daemon.Resume();
   end;
+end;
+
+procedure TDSettings.AddToLog(AValue: string);
+begin
+  if (mLog.Lines.Count > 50) then
+  begin
+//    mLog.Lines.Clear;
+    mLog.Lines.Delete(0);
+  end;
+  mLog.Lines.Add(DateTimeToStr(Now) + ': ' + AValue);
 end;
 
 end.

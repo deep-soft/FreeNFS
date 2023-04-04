@@ -1,5 +1,5 @@
 {******************************************************************************}
-{*                         Network File System  3.02                          *}
+{*                         Network File System  3.05                          *}
 {* Updated Coding and comments by Lawrence E. Smith, Jacksonville, MO USA and *}
 {*                     Original Coding by Unknown Author                      *}
 {*     Contact:  larry_e_smith at that gmail.com  660-775-2282 USA Phone      *}
@@ -43,10 +43,6 @@ Interface
     RFC 1831: Remote Procedure Call Protocol Specification Version 2
     RFC 1813: NFS Version 3 Protocol Specification
     RFC 1014: External Data Representation Standard
-
-    https://tools.ietf.org/html/rfc1014
-    https://www.ietf.org/rfc/rfc1831.txt
-    https://tools.ietf.org/html/rfc1813
 }
 
 Uses
@@ -231,7 +227,6 @@ Type
     function Mount3_Mnt(): Boolean; virtual;
     function Mount3_UMnt(): Boolean; virtual;
     function Mount3_UMntAll(): Boolean; virtual;
-    function Mount3_Export(): Boolean; virtual;
     function NFS3_Access(): Boolean; virtual;
     function NFS3_Commit(): Boolean; virtual;
     function NFS3_Create(): Boolean; virtual;
@@ -276,7 +271,6 @@ const
 
 procedure StartDaemon(const Root: TFilename; const ACodePage: Integer = CP_ACP);
 procedure StopDaemon();
-procedure DebugMsg(const Msg: String);
 
 var
   Daemon: TDaemon;
@@ -285,6 +279,7 @@ implementation {***************************************************************}
 
 uses
   Math,
+  fDSettings,
   StrUtils;
 
 type
@@ -297,11 +292,6 @@ const
 
 var
   WSAData: WinSock.WSADATA;
-
-procedure DebugMsg(const Msg: String);
-begin
-  OutputDebugString(PChar(Msg))
-end;
 
 // Bug in WinSock.pas: u_long is defined as Longint, instead of Longword
 function ntohl(netlong: ULONG): ULONG; stdcall; external 'wsock32.dll' name 'ntohl';
@@ -600,7 +590,7 @@ begin
     Flags := FILE_FLAG_BACKUP_SEMANTICS
   else
     Flags := 0;
-    DebugMsg(ohandle.Path);
+
   WinHandle := CreateFileW(PWideChar(ohandle.Path),
                            GENERIC_READ,
                            FILE_SHARE_READ or FILE_SHARE_WRITE,
@@ -640,7 +630,6 @@ begin
     Attr3.nlink := htonl(1);
     LI.LowPart := FileInformations.nFileSizeLow; LI.HighPart := FileInformations.nFileSizeHigh;
     Attr3.size := htonll(LI.QuadPart);
-    DebugMsg(IntToStr(LI.QuadPart));
     Attr3.used := Attr3.size;
     Attr3.fileid := IndexOf(ohandle);
     if (FileInformations.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY <> 0) then
@@ -871,6 +860,7 @@ begin
 
     AllowedAddrs.Add(AllowedAddr);
   end;
+  DSettings.AddToLog('AddrHost:' + Host);
 end;
 
 function TDaemon.AddrAccepted(const S_addr: u_long): Boolean;
@@ -885,12 +875,15 @@ begin
       Result := (Mounts.Items[I]^.S_addr = S_addr);
       Inc(I);
     end;
+//1  DSettings.AddToLog('AddrAccepted:' + BoolToStr(Result));
+  Result := TRUE;
 end;
 
 function TDaemon.AddrAllowed(const S_addr: u_long): Boolean;
 var
   I: Integer;
 begin
+//1  DSettings.AddToLog('AddrAllow1:' + IntToStr(S_addr));
   if (S_addr = INADDR_NONE) then
     Result := False
   else if (AllowedAddrs.Count = 0) then
@@ -905,6 +898,7 @@ begin
       Inc(I);
     end;
   end;
+//1  DSettings.AddToLog('AddrAllow2:' + BoolToStr(Result));
 end;
 
 constructor TDaemon.Create(const ARoot: TFilename; const ACodePage: Integer; const ACheckTerminated: TDaemonCheckTerminated = nil);
@@ -1007,6 +1001,7 @@ begin
           FErrorMsg := 'Unknown usage of local TCP port ' + IntToStr(ntohs(SockAddr.sin_port))
         else
         begin
+//1          DSettings.AddToLog('Create.begin');
           FD_ZERO(ReadFDS);
           FD_SET(Socket, ReadFDS);
           Time.tv_sec := 5; Time.tv_usec := Time.tv_sec * 1000;
@@ -1366,13 +1361,13 @@ begin
                           case (ProgramVer) of
                             MOUNT_V3:
                               case (MOUNTPROC3(ProgramProc)) of
-                                MOUNTPROC3_NULL:     Success := Mount3_Null();
-                                MOUNTPROC3_MNT:      Success := Mount3_Mnt();
-    //                          MOUNTPROC3_DUMP:
+                                MOUNTPROC3_NULL:    Success := Mount3_Null();
+                                MOUNTPROC3_MNT:     Success := Mount3_Mnt();
+    //                            MOUNTPROC3_DUMP:
                                 MOUNTPROC3_UMNT:     Success := Mount3_UMnt();
                                 MOUNTPROC3_UMNTALL:  Success := Mount3_UMntAll();
-                                MOUNTPROC3_EXPORT:   Success := Mount3_Export();
-                                else                 Success := Write(ULONG(PROC_UNAVAIL));
+    //                            MOUNTPROC3_EXPORT:
+                                else                Success := Write(ULONG(PROC_UNAVAIL));
                               end
                             else
                               begin
@@ -1385,7 +1380,7 @@ begin
                       end;
                     end;
                   NFSDeamounPort:
-                    if (not AddrAllowed(RemoteAddr.sin_addr.S_addr)) then
+                    if (not AddrAccepted(RemoteAddr.sin_addr.S_addr)) then
                     begin
                       Success := Success and Write(ULONG(MSG_DENIED));
                       Success := Success and Write(ULONG(AUTH_ERROR));
@@ -1438,6 +1433,7 @@ begin
                   else Success := False;
                 end;
               end;
+
             if (Success) then Flush();
           end;
         end
@@ -1569,6 +1565,7 @@ begin
           lstrcpyW(Mount^.name, DecodeName(nameA));
           Mount^.S_addr := RemoteAddr.sin_addr.S_addr;
           Index := Mounts.Add(Mount);
+          DSettings.AddToLog('MNT3_OK:MNT:' + Mount^.name + ':' + inet_ntoa(RemoteAddr.sin_addr));
         end;
         Inc(Mounts.Items[Index]^.Count);
       end;
@@ -1609,6 +1606,7 @@ begin
             Dec(Mounts.Items[Index].Count)
           else
             Mounts.Delete(Index);
+        DSettings.AddToLog('MNT3_OK:UMN:' + DecodeName(nameA) + ' : ' + inet_ntoa(RemoteAddr.sin_addr));
       end;
     end;
   end;
@@ -1633,25 +1631,7 @@ begin
       for I := Mounts.Count - 1 downto 0 do
         if (Mounts.Items[I].S_addr = RemoteAddr.sin_addr.S_addr) then
           Mounts.Delete(I);
-  end;
-end;
-
-function TDaemon.Mount3_Export(): Boolean;
-var
-  I: Integer;
-  dirpath: exportpath;
-begin
-  Result := Write(ULONG(SUCCESS));
-
-  if (Result) then
-  begin
-    // only supports 1 export for now
-    lstrcpynA(@dirpath, EncodeName('/'), MNTPATHLEN);
-    Write(True); // entry follows
-    Write(ULONG(lstrlenA(@dirpath))); // length
-    Write(dirpath, lstrlenA(@dirpath)); // mount path
-    Write(0); // no group
-    Write(False); // no value follows
+    DSettings.AddToLog('MNT3_OK:UMN:ALL:');
   end;
 end;
 
@@ -1736,12 +1716,12 @@ begin
       begin
         verf := fhandle.WriteHandle;
 
+        ObjectHandles.CloseWriteHandle(fhandle);
+
         if (not ObjectHandles.GetAttr3(fhandle, NewAttr)) then
           status := GetNFSStatus(GetLastError())
         else
           status := NFS3_OK;
-
-        //ObjectHandles.CloseWriteHandle(fhandle);
       end;
 
       Result := Write(ULONG(status));
@@ -2069,7 +2049,7 @@ var
   sattr: sattr3;
   status: NFS_Stat3;
   ohandle: TObjectHandle;
-  OldDirAttr, NewDirAttr: fattr3;
+  OldDirAttr, NewDirAttr, FileAttr: fattr3;
 begin
   Result := Read(len) and (len = SizeOf(dir));
   Result := Result and Read(dir, len);
@@ -2120,7 +2100,7 @@ begin
         Result := Result and Write(ULONG(SizeOf(ohandle))); // File handle length
         Result := Result and Write(ohandle, SizeOf(ohandle)); // File handle
         Result := Result and Write(True); // Attribute follows
-        Result := Result and Write(NewDirAttr, SizeOf(NewDirAttr)); // Attributes
+        Result := Result and Write(FileAttr, SizeOf(FileAttr)); // Attributes
         Result := Result and WriteWCC(OldDirAttr, NewDirAttr);
       end;
     end;

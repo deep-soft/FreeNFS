@@ -1,0 +1,19 @@
+// 3.0.5 - 2023-04-04: forced AddrAccepted to TRUE
+
+C:\Users\user\Documents\FreeNFS
+
+# // mount in Windows
+mount -o anon 192.168.0.100:/ Z:
+
+# // mount in Linux
+#!/bin/bash
+mount -v -t nfs -o nfsvers=3,vers=3,proto=tcp,sec=none,timeo=20,soft,intr 192.168.0.100:/ /root/mnt/fnfs
+
+# ------------
+# set the "default" anonymous UID and GID for Client for NFS to access a NFS share
+
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ClientForNFS\CurrentVersion\Default]
+"AnonymousUid"=dword:3e8
+"AnonymousGid"=dword:3e8
